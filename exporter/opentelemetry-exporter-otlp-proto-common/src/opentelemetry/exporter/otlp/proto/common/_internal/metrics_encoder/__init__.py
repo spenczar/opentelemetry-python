@@ -191,7 +191,9 @@ def encode_metrics(data: MetricsData) -> ExportMetricsServiceRequest:
                 )
 
                 if isinstance(metric.data, Gauge):
+                    empty = True
                     for data_point in metric.data.data_points:
+                        empty = False
                         pt = pb2.NumberDataPoint(
                             attributes=_encode_attributes(
                                 data_point.attributes
@@ -203,9 +205,13 @@ def encode_metrics(data: MetricsData) -> ExportMetricsServiceRequest:
                         else:
                             pt.as_double = data_point.value
                         pb2_metric.gauge.data_points.append(pt)
+                    if empty:
+                        pb2_metric.gauge = pb2.Gauge([])
 
                 elif isinstance(metric.data, HistogramType):
+                    empty = True
                     for data_point in metric.data.data_points:
+                        empty = False
                         pt = pb2.HistogramDataPoint(
                             attributes=_encode_attributes(
                                 data_point.attributes
@@ -225,9 +231,15 @@ def encode_metrics(data: MetricsData) -> ExportMetricsServiceRequest:
                             metric.data.aggregation_temporality
                         )
                         pb2_metric.histogram.data_points.append(pt)
+                    if empty:
+                        pb2_metric.histogram = pb2.Histogram(
+                            [], AggregationTemporality.CUMULATIVE
+                        )
 
                 elif isinstance(metric.data, Sum):
+                    empty = True
                     for data_point in metric.data.data_points:
+                        empty = False
                         pt = pb2.NumberDataPoint(
                             attributes=_encode_attributes(
                                 data_point.attributes
@@ -249,10 +261,15 @@ def encode_metrics(data: MetricsData) -> ExportMetricsServiceRequest:
                         )
                         pb2_metric.sum.is_monotonic = metric.data.is_monotonic
                         pb2_metric.sum.data_points.append(pt)
+                    if empty:
+                        pb2_metric.sum = pb2.Sum(
+                            [], AggregationTemporality.CUMULATIVE, True
+                        )
 
                 elif isinstance(metric.data, ExponentialHistogramType):
+                    empty = True
                     for data_point in metric.data.data_points:
-
+                        empty = False
                         if data_point.positive.bucket_counts:
                             positive = pb2.ExponentialHistogramDataPoint.Buckets(
                                 offset=data_point.positive.offset,
@@ -291,7 +308,13 @@ def encode_metrics(data: MetricsData) -> ExportMetricsServiceRequest:
                             metric.data.aggregation_temporality
                         )
                         pb2_metric.exponential_histogram.data_points.append(pt)
-
+                    if empty:
+                        pb2_metric.exponential_histogram = (
+                            pb2.ExponentialHistogram(
+                                [],
+                                AggregationTemporality.CUMULATIVE,
+                            )
+                        )
                 else:
                     _logger.warning(
                         "unsupported data type %s",
